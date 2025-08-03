@@ -7,7 +7,20 @@ import datetime
 import requests
 # WARNING: Do not hardcode API keys in source code. Use environment variables for secrets.
 
+
 DEBUG = False  # Set to False to disable debug output
+
+def get_api_key():
+    
+    """
+    Retrieve the HubSpot API key from the environment variable HUBSPOT_API_KEY.
+    Prints an error and returns None if not set.
+    """
+    api_key = os.getenv('HUBSPOT_API_KEY')
+    if not api_key:
+        print("HUBSPOT_API_KEY environment variable not set.")
+        return None
+    return api_key
 
 def log_failed_record_id(record_id, reason=None, response=None):
     """
@@ -68,6 +81,7 @@ def log_http_error(request, response):
     except Exception:
         pass
     print("--------------------------")
+
 def create_hubspot_contact(csv_json):
     """
     Create a new HubSpot contact using the provided CSV JSON record.
@@ -79,9 +93,8 @@ def create_hubspot_contact(csv_json):
     if not update_properties:
         print("No properties to set for new contact. Skipping.")
         return False
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return False
     url = "https://api.hubapi.com/crm/v3/objects/contacts"
     headers = {
@@ -106,7 +119,7 @@ import requests
 
 def update_secondary_email(contact_id: str, secondary_email: str):
 
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     print(f"Start Email insert record: {contact_id} email: {secondary_email}")
 
     secondary_url = f"https://api.hubapi.com/contacts/v1/secondary-email/{contact_id}/email/{secondary_email}"
@@ -163,9 +176,8 @@ def add_secondary_email_to_hubspot_contact(contact_id, secondary_email):
     secondary_email: The email address to add as secondary (str)
     Returns True if successful, False otherwise.
     """
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return False
     url = f"https://api.hubapi.com/contacts/v1/secondary-email/{contact_id}/email/{secondary_email}?hapikey={api_key}"
     headers = {"Content-Type": "application/json"}
@@ -178,6 +190,7 @@ def add_secondary_email_to_hubspot_contact(contact_id, secondary_email):
     except Exception as e:
         print(f"HubSpot API error while adding secondary email to contact {contact_id}: {e}")
         return False
+    
 def get_hubspot_language_map():
     """
     Returns a dictionary mapping language labels (and label variants) to HubSpot internal language values.
@@ -396,6 +409,7 @@ def get_hubspot_language_map():
         lang_map[label.lower()] = code
         lang_map[code.lower()] = code
     return lang_map
+
 def get_hubspot_update_properties(hubspot_json, csv_json):
     """
     Given a HubSpot contact JSON (properties) and a CSV record JSON,
@@ -604,9 +618,8 @@ def update_hubspot_contact_by_id(contact_id, properties):
     Requires HUBSPOT_API_KEY environment variable to be set.
     Returns the updated properties as a JSON object, or None on error.
     """
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return None
     # Special handling for email: if multiple emails, set first as primary, add others as secondary
     email_val = properties.get('email')
@@ -668,9 +681,8 @@ def get_hubspot_contact_by_id(contact_id):
     Fetch a HubSpot contact record by ID and return its properties as a JSON object.
     Requires HUBSPOT_API_KEY environment variable to be set.
     """
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return None
     url = f"https://api.hubapi.com/crm/v3/objects/contacts/{contact_id}"
     headers = {
@@ -691,9 +703,8 @@ def merge_hubspot_contacts(id1, id2):
     Merge two HubSpot contacts. The contact with the smaller ID is merged into the larger (primary).
     Returns the API response or error message.
     """
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return None
     try:
         # Ensure both IDs are strings and compare as integers
@@ -724,9 +735,8 @@ def search_hubspot_by_name(first_name, last_name):
     Search HubSpot contacts by first name and last name using API v3 and return a list of record IDs if found.
     Requires HUBSPOT_API_KEY environment variable to be set.
     """
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return []
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
     headers = {
@@ -766,7 +776,6 @@ def search_hubspot_by_name(first_name, last_name):
 
 
 def main():
-
     if len(sys.argv) < 2:
         print("Usage: python read_record.py <csv_file> <record_number> [num_records]")
         sys.exit(1)
@@ -966,15 +975,12 @@ def main():
         print(f"Error: {e}")
         sys.exit(1)
 
-
-
 def get_company_names_for_contact(contact_id):
     """
     Given a HubSpot contact ID, retrieve associated company names (set, lowercased).
     """
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return set()
     url = f"https://api.hubapi.com/crm/v3/objects/contacts/{contact_id}/associations/companies"
     headers = {
@@ -1003,15 +1009,13 @@ def get_company_names_for_contact(contact_id):
         print(f"HubSpot API error while fetching company names for contact {contact_id}: {e}")
         return set()
 
-
 def search_hubspot_by_email(email):
     """
     Search HubSpot contacts by email using API v3 and return the record ID if found.
     Requires HUBSPOT_API_KEY environment variable to be set.
     """
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return None
     email = email.strip().lower().rstrip('.')
     # Use legacy endpoint to search by primary and secondary email
@@ -1038,15 +1042,13 @@ def search_hubspot_by_email(email):
         print(f"HubSpot API error: {e}")
         return []
 
-
 def search_hubspot_by_linkedin_id(linkedin_id):
     """
     Search HubSpot contacts by LinkedIn User Id (custom property 'linkedinuserid') using API v3 and return the record ID if found.
     Requires HUBSPOT_API_KEY environment variable to be set.
     """
-    api_key = os.getenv('HUBSPOT_API_KEY')
+    api_key = get_api_key()
     if not api_key:
-        print("HUBSPOT_API_KEY environment variable not set.")
         return None
     url = "https://api.hubapi.com/crm/v3/objects/contacts/search"
     headers = {
@@ -1094,7 +1096,6 @@ def search_hubspot_by_linkedin_id(linkedin_id):
     except Exception as e:
         print(f"HubSpot API error: {e}")
         return []
-
 
 def extract_emails_from_record(record):
     """
