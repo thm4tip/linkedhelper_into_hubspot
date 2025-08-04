@@ -438,7 +438,9 @@ def get_hubspot_update_properties(hubspot_json, csv_json):
     if edu_degree or edu_fos:
         edu_desc = ' '.join([v for v in [edu_degree, edu_fos] if v])
         if edu_desc and hubspot_json.get('education_description_1') != edu_desc:
-            update_props['education_description_1'] = edu_desc
+            if edu_desc != 'N/A':
+                # Only update if the description is not 'N/A'
+                update_props['education_description_1'] = edu_desc
 
     # Custom logic: split csv.location_name into hubspot city, state, country
     if 'location_name' in csv_json and csv_json['location_name']:
@@ -501,7 +503,6 @@ def get_hubspot_update_properties(hubspot_json, csv_json):
         'organization_title_1': 'organization_title_1',
         'organization_start_1': 'organization_start_1',
         'organization_end_1': 'organization_end_1',
-        'organization_description_1': 'organization_description_1',
         'organization_location_1': 'organization_location_1',
         'organization_website_1': 'organization_website_1',
         'organization_domain_1': 'organization_domain_1',
@@ -552,6 +553,11 @@ def get_hubspot_update_properties(hubspot_json, csv_json):
                             val_to_set = 'https://'
                     elif not val_str.lower().startswith('http'):
                         val_to_set = 'https://' + val_str
+                # Validate the resulting URL
+                url_pattern = re.compile(r'^https?://[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!$&()*+,;=.]+$', re.IGNORECASE)
+                if not (val_to_set and url_pattern.match(val_to_set) and 'N/A' not in val_to_set):
+                    # If not a valid URL, discard
+                    val_to_set = None
             if hub_key == 'hs_language':
                 # Map language_1 to hs_language using the language map
                 lang_code = lang_map.get(str(csv_val).strip().lower())
@@ -575,7 +581,8 @@ def get_hubspot_update_properties(hubspot_json, csv_json):
                 # For company, only update if not already set or if org_1 is preferred
                 if hub_key == 'company' and hubspot_json.get('company'):
                     continue
-                update_props[hub_key] = val_to_set
+                if val_to_set:
+                    update_props[hub_key] = val_to_set
 
     # 3. Custom logic for special fields
     # If csv.id is not null and csv.id_type is 'public-id', set hubspot 'linkedin_user_id' to csv.id
