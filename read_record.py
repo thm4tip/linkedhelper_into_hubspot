@@ -179,8 +179,11 @@ def add_secondary_email_to_hubspot_contact(contact_id, secondary_email):
     api_key = get_api_key()
     if not api_key:
         return False
-    url = f"https://api.hubapi.com/contacts/v1/secondary-email/{contact_id}/email/{secondary_email}?hapikey={api_key}"
-    headers = {"Content-Type": "application/json"}
+    url = f"https://api.hubapi.com/contacts/v1/secondary-email/{contact_id}/email/{secondary_email}"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
     payload = {"email": secondary_email}
     try:
         response = requests.put(url, headers=headers, json=payload)
@@ -590,13 +593,17 @@ def get_hubspot_update_properties(hubspot_json, csv_json):
         if hubspot_json.get('linkedin_user_id') != csv_json['id']:
             update_props['linkedin_user_id'] = csv_json['id']
 
-    # Custom logic: hub.email is a comma-separated list of csv.email, third_party_email_1/2/3 (no trailing comma)
+    # Custom logic: for new contact creation, only set the first email
     email_fields = [csv_json.get('email'), csv_json.get('third_party_email_1'), csv_json.get('third_party_email_2'), csv_json.get('third_party_email_3')]
     email_list = [e.strip() for e in email_fields if e and str(e).strip()]
     if email_list:
-        email_value = ','.join(email_list)
-        if hubspot_json.get('email') != email_value:
-            update_props['email'] = email_value
+        # If this is a new contact (hubspot_json is empty), only set the first email
+        if not hubspot_json or not hubspot_json.get('email'):
+            update_props['email'] = email_list[0]
+        else:
+            email_value = ','.join(email_list)
+            if hubspot_json.get('email') != email_value:
+                update_props['email'] = email_value
 
     # Always set linkedin_url to profile_url if present in CSV
     profile_url = csv_json.get('profile_url')
@@ -931,10 +938,21 @@ def main():
                     print(f"Single HubSpot record ID found: {all_hubspot_ids[0]}")
                 else:
                     print("No HubSpot record found for this contact. Creating a new contact.")
-                    create_contact_id = create_hubspot_contact(record)
+                    # Only use the first email for creation
+                    emails_for_creation = email_addresses if email_addresses else []
+                    if emails_for_creation:
+                        record_for_creation = record.copy()
+                        record_for_creation['email'] = emails_for_creation[0]
+                    else:
+                        record_for_creation = record.copy()
+                    create_contact_id = create_hubspot_contact(record_for_creation)
                     if create_contact_id:
                         print(f"Created new HubSpot contact with ID: {create_contact_id}")
                         all_hubspot_ids = [str(create_contact_id)]
+                        # Add remaining emails as secondary
+                        if emails_for_creation and len(emails_for_creation) > 1:
+                            for sec_email in emails_for_creation[1:]:
+                                add_secondary_email_to_hubspot_contact(create_contact_id, sec_email)
                     else:
                         print("Failed to create a new HubSpot contact.")
                         return
